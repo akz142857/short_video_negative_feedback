@@ -1,2 +1,8 @@
 .claude/
 non_submission/
+
+# SQLite databases are hosted on Google Drive (see data/README.md)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
