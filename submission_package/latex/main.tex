@@ -1,0 +1,346 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{graphicx}
+
+\title{Negative Feedback and Reach in Short-Video Recommendation:\\
+A Deterministic OASIS Study}
+\author{ZiyangLiu\\\texttt{me.zyliu@gmail.com}}
+\date{April 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We study whether explicit negative feedback can reduce the reach of low-quality
+content in a short-video recommender. Using OASIS, we first run a deterministic
+two-condition TikTok-style simulation (baseline versus stronger
+\texttt{not\_interested} treatment) to verify mechanism behavior: platform-level
+totals remain stable while target-item negative feedback increases and target
+traffic-pool level decreases. We then run a larger four-arm robustness study
+(18 parameter configurations, 30 paired runs each, with scaled
+creators/viewers/videos). At this larger scale, treatment robustly increases
+target negative-feedback metrics (18/18 significant), while target pool-level
+demotion remains directionally negative but statistically weaker (3/18
+significant). The findings support explicit negative feedback as a meaningful
+governance signal, with effect strength depending on regime and scale.
+\end{abstract}
+
+\section{Introduction}
+Negative-feedback controls such as ``not interested'' are widely deployed in
+short-video products, but their direct effect is difficult to isolate in live
+systems. Online traffic is noisy, policies change over time, and experiments
+must balance rigor against operational risk.
+
+We use agent-based simulation to study this mechanism under controlled
+conditions. OASIS~\cite{oasis2024} supports replayable social experiments with
+configurable users, actions, and ranking behavior. The scope here is narrow:
+whether increasing explicit negative feedback on one low-quality item changes
+its distribution level while coarse platform totals remain stable.
+
+\paragraph{Contributions}
+\begin{enumerate}
+\item A deterministic two-condition protocol for short-video feedback analysis.
+\item A controlled result showing target-item demotion (\texttt{traffic\_pool\_level}: 1 $\rightarrow$ 0).
+\item Reproducible artifacts (DBs, reports, and comparison outputs) for extension.
+\end{enumerate}
+
+\section{Related Work}
+Recent short-video recommendation work has emphasized modeling passive-negative
+feedback from user skip behavior and integrating such signals in sequential
+ranking objectives (\cite{pan2023passivenegative}). That line of work is
+primarily offline and model-centric, evaluated on logged behavioral datasets.
+
+Our study is complementary rather than competitive with that objective. We focus
+on policy-effect evaluation in a controlled simulation: given matched
+conditions, what changes in distribution emerge when explicit negative feedback
+is intensified for a target low-quality item? In other words, this paper asks a
+mechanism and intervention question, while prior work mainly asks a prediction
+and ranking-accuracy question.
+
+\section{Method}
+\subsection{Environment}
+We use the TikTok-style mode in OASIS with traffic-pool recommendation logic.
+The run contains 3 creators, 6 viewers, and 4 uploaded videos (dance, tech,
+comedy, lifestyle). Agents perform watches, comments, shares, and negative
+feedback (\texttt{not\_interested}). Livestream actions are enabled but are not
+primary outcomes in this paper.
+
+Our ranking setup follows standard industrial recommendation practice where
+engagement and satisfaction signals are combined at ranking time
+(\cite{covington2016youtube,zhao2019multitask}) and where feedback signals can
+be interpreted as preference evidence (\cite{rendle2009bpr}).
+
+\subsection{Experimental Design}
+We construct two deterministic conditions:
+\begin{itemize}
+\item \textbf{Baseline:} weak negative feedback against one low-quality comedy video.
+\item \textbf{Treatment:} stronger negative feedback against the same target video.
+\end{itemize}
+All non-treatment factors are identical: user identities, follow graph, upload
+sequence, viewer plans, ranking parameters, and simulation step progression. The
+only intervention is additional negative-feedback events on the comedy item in
+treatment.
+
+\subsection{Metrics}
+Platform-level:
+\begin{itemize}
+\item \texttt{total\_views}
+\item \texttt{avg\_watch\_ratio}
+\end{itemize}
+Target-video level (low-quality comedy):
+\begin{itemize}
+\item \texttt{negative\_count}
+\item \texttt{traffic\_pool\_level}
+\end{itemize}
+
+\section{Experimental Setup and Reproducibility}
+The pipeline consists of:
+\begin{enumerate}
+\item Generating baseline/treatment databases via
+\texttt{examples/experiment/short\_video\_negative\_feedback/run\_experiment.py}.
+\item Generating per-run summaries via
+\texttt{visualization/short\_video\_simulation/code/generate\_report.py}.
+\item Generating cross-run comparison via
+\texttt{visualization/short\_video\_simulation/code/compare\_runs.py}.
+\end{enumerate}
+
+Key artifacts include:
+\texttt{negative\_feedback\_baseline.db},
+\texttt{negative\_feedback\_treatment.db},
+\texttt{baseline\_report.md},
+\texttt{treatment\_report.md},
+\texttt{comparison\_time\_series.csv}, and
+\texttt{comparison\_metrics.png}.
+
+\section{Results}
+\subsection{Main Aggregate Results (Single-Run)}
+\begin{table}[h]
+\centering
+\begin{tabular}{lrr}
+\toprule
+Metric & Baseline & Treatment \\
+\midrule
+total\_views & 16 & 16 \\
+avg\_watch\_ratio & 0.638 & 0.638 \\
+target negative\_count & 1 & 3 \\
+target traffic\_pool\_level & 1 & 0 \\
+\bottomrule
+\end{tabular}
+\caption{Main outcomes under matched baseline and treatment conditions.}
+\label{tab:main-results}
+\end{table}
+
+Platform-level outcomes remain stable while the target low-quality content is
+demoted under stronger negative feedback.
+
+\subsection{Time-Series Evidence}
+Figure~\ref{fig:comparison-metrics} reports the run-level trajectories generated
+from the comparison artifact (\texttt{comparison\_metrics.png}), including
+cumulative views, average watch ratio, and average traffic-pool level.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\linewidth]{../../../../examples/experiment/short_video_negative_feedback/output/comparison/comparison_metrics.png}
+\caption{Baseline vs. treatment trajectories for cumulative views, average
+watch ratio, and average traffic-pool level.}
+\label{fig:comparison-metrics}
+\end{figure}
+
+The key divergence appears at the low-quality comedy-item update step, where the
+treatment condition accumulates stronger negative feedback and triggers item
+demotion. Outside the treated item, global curves remain close, consistent with
+a selective intervention effect.
+
+\subsection{Multi-Run Statistical Results ($n=30$)}
+To increase robustness, we ran 30 paired baseline/treatment experiments with
+seeded perturbations
+(\texttt{watch\_jitter}=0.08, \texttt{behavior\_flip\_prob}=0.05,
+\texttt{treatment\_extra\_neg\_prob}=0.85). Table~\ref{tab:multirun-results}
+reports paired differences and two-sided paired sign-flip p-values.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lrrr}
+\toprule
+Metric & Paired Diff Mean & 95\% CI & p-value \\
+\midrule
+total\_negative\_feedback & +1.700 & [1.372, 2.028] & 0.00005 \\
+comedy\_negative\_count & +1.767 & [1.613, 1.921] & 0.00005 \\
+comedy\_traffic\_pool\_level & -0.667 & [-0.862, -0.471] & 0.00005 \\
+avg\_watch\_ratio & -0.00068 & [-0.00445, 0.00308] & 0.72296 \\
+total\_shares & -0.100 & [-0.355, 0.155] & 0.60457 \\
+\bottomrule
+\end{tabular}
+\caption{Paired multi-run treatment effects (Treatment - Baseline), 30 runs.}
+\label{tab:multirun-results}
+\end{table}
+
+These multi-run results strengthen the mechanism claim: treatment consistently
+increases negative feedback and lowers the target comedy video's traffic-pool
+level, while global engagement-style metrics do not show statistically
+meaningful shifts in this setup.
+
+\subsection{Large-Scale Parameter Sweep (18 Configurations $\times$ 30 Runs, Four Arms)}
+We strengthen the evaluation with a four-arm setup (\texttt{baseline},
+\texttt{treatment}, \texttt{none}, \texttt{random}) and larger synthetic scale
+(3x creators, 5x viewers, 4x videos). For the treatment-versus-baseline
+comparison, we keep the same 18-configuration parameter grid:
+\texttt{watch\_jitter} $\in \{0.04,0.08,0.12\}$,
+\texttt{behavior\_flip\_prob} $\in \{0.02,0.05\}$, and
+\texttt{treatment\_extra\_neg\_prob} $\in \{0.70,0.85,1.00\}$.
+
+Under this stronger setup, \texttt{comedy\_negative\_diff\_mean} remains
+positive and significant in 18/18 configurations, while
+\texttt{comedy\_pool\_diff\_mean} is directionally negative on average but only
+significant in 3/18 configurations. Platform-level \texttt{watch\_ratio} and
+\texttt{shares} remain non-significant in 18/18 configurations.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lrrrrrr}
+\toprule
+\texttt{treatment\_extra\_neg\_prob} & Pool Mean & Pool SD & Pool Sig & Neg Mean & Neg SD & Neg Sig \\
+\midrule
+0.70 & -0.061 & 0.039 & 0/6 & +1.339 & 0.071 & 6/6 \\
+0.85 & -0.083 & 0.072 & 1/6 & +1.567 & 0.060 & 6/6 \\
+1.00 & -0.117 & 0.084 & 2/6 & +1.922 & 0.046 & 6/6 \\
+\bottomrule
+\end{tabular}
+\caption{Large-scale treatment robustness grouped by treatment intensity.}
+\label{tab:batch-tn-summary}
+\end{table}
+
+The aggregate trend remains monotonic: stronger treatment intensity increases
+target negative-feedback accumulation and yields more negative (though modest)
+target pool-level shifts.
+
+\subsection{Control-Arms Comparison (vs Baseline)}
+To test whether any perturbation can mimic treatment effects, we compare
+\texttt{none}, \texttt{random}, and \texttt{treatment} against baseline across
+the same 18 configurations.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lrrrr}
+\toprule
+Condition & Comedy Neg Diff (mean $\pm$ sd) & Comedy Pool Diff (mean $\pm$ sd) & Watch Diff (mean $\pm$ sd) & Share Diff (mean $\pm$ sd) \\
+\midrule
+none & -5.339 $\pm$ 0.169 & +0.022 $\pm$ 0.040 & +0.000000 $\pm$ 0.000000 & +0.000 $\pm$ 0.000 \\
+random & +0.700 $\pm$ 0.307 & +0.011 $\pm$ 0.044 & -0.000063 $\pm$ 0.000766 & +0.085 $\pm$ 0.724 \\
+treatment & +1.609 $\pm$ 0.253 & -0.087 $\pm$ 0.068 & +0.000090 $\pm$ 0.000429 & +0.026 $\pm$ 0.351 \\
+\bottomrule
+\end{tabular}
+\caption{Control-arm contrasts versus baseline, aggregated over 18 configurations.}
+\label{tab:control-arms}
+\end{table}
+
+Random negatives weakly increase target negative-count but do not induce
+targeted demotion. Treatment remains the only arm with a consistent negative
+direction on target pool-level difference.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\linewidth]{../../../../examples/experiment/short_video_negative_feedback/batch_output_85plus/batch_85plus_fourarm_summary.png}
+\caption{Large-scale four-arm robustness summary (18 configurations, 30 paired runs each).}
+\label{fig:batch-robustness}
+\end{figure}
+
+\subsection{Mechanism Calibration: Balanced-Sensitive Profile ($n=30$)}
+To improve mechanism observability in the scaled setting, we introduced a
+\texttt{balanced\_sensitive} recommender profile that increases
+negative-feedback penalty while avoiding floor effects from overly aggressive
+demotion. We then ran a paired 30-run probe (20x creators/viewers/videos,
+\texttt{watch\_jitter}=0.30, \texttt{behavior\_flip\_prob}=0.10,
+\texttt{treatment\_extra\_neg\_prob}=1.00).
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lrrrr}
+\toprule
+Metric & Paired Diff Mean & p-value & Baseline Mean & Treatment Mean \\
+\midrule
+negative\_feedback\_rate & +0.005646 & 0.000050 & 0.151547 & 0.157193 \\
+comedy\_traffic\_pool\_level & -0.233333 & 0.015249 & 0.633333 & 0.400000 \\
+retention\_3s\_rate & +0.000000 & 1.000000 & 0.982271 & 0.982271 \\
+avg\_watch\_ratio & +0.000000 & 1.000000 & 0.622830 & 0.622830 \\
+creator\_coverage & +0.000000 & 1.000000 & 1.000000 & 1.000000 \\
+\bottomrule
+\end{tabular}
+\caption{Balanced-sensitive calibration probe (Treatment - Baseline), 30 paired runs.}
+\label{tab:balanced-calibration}
+\end{table}
+
+This calibration closes an important gap from earlier large-scale runs:
+targeted negative feedback no longer changes only count-level signals; it also
+induces statistically significant target demotion at traffic-pool level.
+
+\section{Discussion}
+The large-scale result is informative and more nuanced. Targeted explicit
+negative feedback robustly increases item-level negative signals, while
+pool-level demotion remains sensitive to parameter regime under broader noise
+and scale. With calibrated ranking sensitivity (\texttt{balanced\_sensitive}),
+targeted demotion becomes statistically significant while platform-level watch
+and coverage signals stay stable. This suggests that negative feedback is a
+strong governance signal, but its distributional effect depends on calibration
+of ranking sensitivity.
+
+\section{Limitations}
+\begin{enumerate}
+\item The simulation world is still small (fixed creators, viewers, and categories) relative to real platform scale.
+\item Short horizon and limited content taxonomy.
+\item No strategic adaptation from creators or viewers.
+\item Findings show mechanism behavior, not production-scale effect sizes.
+\end{enumerate}
+
+\section{Ethics and Broader Impacts}
+This study uses synthetic agents and no personal user data. In real deployment,
+negative-feedback-driven demotion can still raise fairness and representation
+concerns. Any deployment should pair these signals with calibration, monitoring,
+and appeals-aware processes.
+
+\section{Conclusion}
+Under controlled conditions in OASIS, increasing explicit negative feedback on a
+low-quality video reliably increases target negative-feedback metrics while
+keeping platform-level totals stable. With the calibrated
+\texttt{balanced\_sensitive} profile, we also observe statistically significant
+target pool-level demotion in the scaled setting
+(\texttt{comedy\_traffic\_pool\_level} diff $-0.233333$, $p=0.015249$). This
+provides a stronger mechanism baseline for follow-up moderation and
+ranking-policy studies.
+
+This use of synthetic populations is also aligned with recent simulation-driven
+behavioral experimentation in agent systems (\cite{park2023generative}).
+
+\section{Data and Reproducibility}
+All core artifacts are available in the repository output directory:
+\begin{itemize}
+\item \texttt{examples/experiment/short\_video\_negative\_feedback/output/negative\_feedback\_baseline.db}
+\item \texttt{examples/experiment/short\_video\_negative\_feedback/output/negative\_feedback\_treatment.db}
+\item \texttt{examples/experiment/short\_video\_negative\_feedback/output/comparison/comparison\_time\_series.csv}
+\item \texttt{examples/experiment/short\_video\_negative\_feedback/output/comparison/comparison\_metrics.png}
+\item \texttt{examples/experiment/short\_video\_negative\_feedback/batch\_output\_85plus/batch\_config\_summary.csv}
+\item \texttt{examples/experiment/short\_video\_negative\_feedback/batch\_output\_85plus/batch\_report.md}
+\item \texttt{examples/experiment/short\_video\_negative\_feedback/batch\_output\_85plus/batch\_85plus\_fourarm\_summary.png}
+\item \texttt{examples/experiment/short\_video\_negative\_feedback/output\_metric\_probe\_balanced\_n30/multirun\_summary.csv}
+\end{itemize}
+
+Reproduction entry points:
+\begin{itemize}
+\item \texttt{examples/experiment/short\_video\_negative\_feedback/run\_experiment.py}
+\item \texttt{examples/experiment/short\_video\_negative\_feedback/run\_batch\_experiments.py}
+\item \texttt{visualization/short\_video\_simulation/code/generate\_report.py}
+\item \texttt{visualization/short\_video\_simulation/code/compare\_runs.py}
+\item \texttt{scripts/ci/run\_short\_video\_metric\_probe\_balanced\_n30.sh}
+\end{itemize}
+
+\section*{Acknowledgments}
+The author thanks the OASIS project and community for the open-source framework
+and documentation that made this study possible.
+
+\bibliographystyle{plain}
+\bibliography{references}
+
+\end{document}
